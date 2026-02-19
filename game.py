@@ -13,7 +13,7 @@ import pygame as pg
 from core import config as C
 from audio import load_sounds
 from controls import InputMapper
-from systems import World
+from core.world import World
 from core.utils import draw_text
 
 
