@@ -10,11 +10,11 @@ import sys
 
 import pygame as pg
 
-import config as C
+from core import config as C
 from audio import load_sounds
 from controls import InputMapper
 from systems import World
-from utils import draw_text
+from core.utils import draw_text
 
 
 class Scene:

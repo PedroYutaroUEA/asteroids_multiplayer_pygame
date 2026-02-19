@@ -5,9 +5,9 @@ from random import choice, random, uniform
 
 import pygame as pg
 
-import config as C
-from commands import PlayerCommand
-from utils import Vec, angle_to_vec, draw_circle, draw_poly, wrap_pos
+from core import config as C
+from core.commands import PlayerCommand
+from core.utils import Vec, angle_to_vec, draw_circle, draw_poly, wrap_pos
 
 PlayerId = int
 UFO_BULLET_OWNER = -10

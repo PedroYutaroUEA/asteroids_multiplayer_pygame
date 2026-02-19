@@ -8,7 +8,7 @@ Didático:
 from dataclasses import dataclass
 
 import pygame as pg
-import config as C
+from core import config as C
 
 
 @dataclass(slots=True)

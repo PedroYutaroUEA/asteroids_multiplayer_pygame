@@ -55,7 +55,8 @@ BLACK = (0, 0, 0)
 RANDOM_SEED = None
 
 # Paths (funcionam de qualquer diretório de execução).
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# `config.py` fica em `core/`, então subimos um nível para a raiz.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOUND_PATH = os.path.join(BASE_DIR, "assets", "sounds")
 
 # Sounds

@@ -2,7 +2,7 @@
 
 import pygame as pg
 
-from commands import PlayerCommand
+from core.commands import PlayerCommand
 
 
 class InputMapper:
