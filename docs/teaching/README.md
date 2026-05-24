@@ -17,7 +17,7 @@ A proposta é simples: o projeto serve como veículo para ensinar três coisas a
 |---|---|---|
 | [00-overview.md](00-overview.md) | — | Visão geral do projeto, os dois repositórios, o roteiro das cinco fases |
 | [01-foundation.md](01-foundation.md) | F1 | Desacoplar `core/` de pygame, separar mundo de viewport, criar câmera, montar testes e CI |
-| `02-server-lonely.md` | F2 | Servidor headless com WebSocket via `asyncio`, primeiro cliente conecta |
+| [02-server-lonely.md](02-server-lonely.md) | F2 | Servidor headless com WebSocket via `asyncio`, primeiro cliente conecta |
 | `03-multi-player.md` | F3 | Vários jogadores numa sala, deathmatch, respawn |
 | `04-match-lifecycle.md` | F4 | Tempo de partida, frag limit, fim de match, espectador |
 | `05-multi-room.md` | F5 | Servidor hospeda várias salas em paralelo, sistema de tokens |

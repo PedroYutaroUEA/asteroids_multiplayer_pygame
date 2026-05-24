@@ -13,6 +13,18 @@ pip install -r requirements.txt
 python main.py
 ```
 
+### Run multiplayer (one player)
+
+```
+# Terminal 1
+python -m server --port 8765
+
+# Terminal 2
+python -m multiplayer.player --host localhost --port 8765 --name P1
+```
+
+The server is authoritative and runs the `World` headlessly at 60 Hz; the player client connects, receives snapshots at 30 Hz, sends input every frame, and renders through the same client renderer used by single-player.
+
 ## Controls
 
 | Key       | Action |
@@ -26,12 +38,16 @@ python main.py
 
 ## How it works
 
-Two top-level packages keep simulation independent of rendering:
+Four top-level packages, each with a single concern:
 
-- [`core/`](core/) holds game state, entities, collisions, and the per-frame update. It emits string events (`"player_shoot"`, `"asteroid_explosion"`) that the client reacts to.
-- [`client/`](client/) wires pygame to the simulation. It maps input, runs the 60 FPS loop, renders polygons, and plays audio from `world.events`.
+- [`core/`](core/) holds game state, entities, collisions, and the per-frame update. Plain Python, no pygame. Emits string events (`"player_shoot"`, `"asteroid_explosion"`) that consumers react to.
+- [`client/`](client/) wires pygame to the simulation. Maps input, runs the 60 FPS loop, renders polygons, plays audio from `world.events`.
+- [`server/`](server/) hosts the authoritative `World`. Runs the simulation at 60 Hz and broadcasts a snapshot to every connected client at 30 Hz over a single WebSocket per client.
+- [`multiplayer/`](multiplayer/) is the networked player. Connects to a server, applies snapshots to a local read-only `World`, sends input every frame, renders through the existing `client/` renderer.
 
-Multiplayer pieces (`server/`, `multiplayer/`) will be added over the next phases. See [`docs/teaching/`](docs/teaching/) for the lecture material that walks through each phase.
+The single-player path (`python main.py`) uses `core/` + `client/` directly and is preserved across every phase. The multiplayer path (server + multiplayer client) layers `server/` + `multiplayer/` on top without touching the others.
+
+See [`docs/teaching/`](docs/teaching/) for the lecture material that walks through each phase.
 
 Key files:
 
@@ -44,8 +60,8 @@ Key files:
 
 | Phase | Content | Status |
 |---|---|---|
-| F1 — Foundation | Decouple `core/` from pygame, viewport vs world split, camera, testing infra | in progress |
-| F2 — Server lonely | WebSocket asyncio server, single player connects and sees own state | planned |
+| F1 — Foundation | Decouple `core/` from pygame, viewport vs world split, camera, testing infra | done |
+| F2 — Server lonely | WebSocket asyncio server, single player connects and sees own state | done |
 | F3 — Multi-player 1 room | N players in deathmatch, respawn, frag/score | planned |
 | F4 — Match lifecycle | Timer / frag limit / match end, spectator client | planned |
 | F5 — Multi-room | Token-based rooms, parallel matches, per-room logs | planned |
@@ -58,7 +74,10 @@ asteroids_multiplayer/
 ├── pyproject.toml
 ├── core/                     # game state, rules, entities, collisions
 ├── client/                   # pygame loop, renderer, input, audio
+├── server/                   # authoritative World + WebSocket broadcast
+├── multiplayer/              # networked player client
 ├── assets/                   # WAV sound effects
+├── tests/                    # pytest suite (snapshot, protocol, vec, ...)
 └── docs/
     ├── ARCHITECTURE.md
     ├── DEVELOPMENT_WORKFLOW.md
