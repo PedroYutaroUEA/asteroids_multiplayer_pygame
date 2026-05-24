@@ -24,7 +24,12 @@ class World:
       end of each update tick.
     """
 
-    def __init__(self, spawn_default_player: bool = True) -> None:
+    def __init__(
+        self,
+        spawn_default_player: bool = True,
+        deathmatch: bool = False,
+    ) -> None:
+        self.deathmatch = deathmatch
         self.ships: dict[PlayerId, Ship] = {}
         self.bullets: list[Bullet] = []
         self.asteroids: list[Asteroid] = []
@@ -33,6 +38,8 @@ class World:
 
         self.scores: dict[PlayerId, int] = {}
         self.lives: dict[PlayerId, int] = {}
+        self.deaths: dict[PlayerId, int] = {}
+        self.respawning: dict[PlayerId, Countdown] = {}
         self.extra_lives_awarded: dict[PlayerId, int] = {}
         self.wave = 0
         self.wave_cool = Countdown(C.WAVE_DELAY)
@@ -54,7 +61,8 @@ class World:
 
     def reset(self) -> None:
         """Reset the world (used on Game Over)."""
-        self.__init__()
+        deathmatch = self.deathmatch
+        self.__init__(deathmatch=deathmatch)
 
     def spawn_player(self, player_id: PlayerId) -> None:
         pos = Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
@@ -64,6 +72,7 @@ class World:
         self.ships[player_id] = ship
         self.scores[player_id] = 0
         self.lives[player_id] = C.START_LIVES
+        self.deaths[player_id] = 0
         self.extra_lives_awarded[player_id] = 0
 
     def get_ship(self, player_id: PlayerId) -> Ship | None:
@@ -117,6 +126,7 @@ class World:
 
         self._update_ufos(dt)
         self._update_timers(dt)
+        self._update_respawns(dt)
         self._handle_collisions()
         self._maybe_start_next_wave(dt)
         self._purge_dead()
@@ -167,6 +177,20 @@ class World:
                 min_dist = d
                 nearest = ship
         return nearest.pos if nearest else None
+
+    def _update_respawns(self, dt: float) -> None:
+        for pid, timer in list(self.respawning.items()):
+            if timer.tick(dt):
+                self._respawn_player(pid)
+                self.respawning.pop(pid, None)
+
+    def _respawn_player(self, pid: PlayerId) -> None:
+        """Bring a dead deathmatch player back at a safe random position."""
+        temp = Ship(pid, Vec(0, 0))
+        pos = self._find_safe_hyperspace_pos(temp)
+        ship = Ship(pid, pos)
+        ship.invuln.reset(C.SAFE_SPAWN_TIME)
+        self.ships[pid] = ship
 
     def _find_safe_hyperspace_pos(self, ship: Ship) -> Vec:
         """Pick a random position that is not on top of an asteroid.
@@ -239,18 +263,32 @@ class World:
 
     def _ship_die(self, ship: Ship) -> None:
         pid = ship.player_id
+        self.events.append("ship_explosion")
+
+        if self.deathmatch:
+            self.deaths[pid] = self.deaths.get(pid, 0) + 1
+            self.ships.pop(pid, None)
+            self.respawning[pid] = Countdown(C.RESPAWN_DELAY)
+            return
+
+        # Single-player: respawn-in-place with a life consumed.
         self.lives[pid] = self.lives[pid] - 1
         ship.pos.xy = (C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
         ship.vel.xy = (0, 0)
         ship.angle = -90.0
         ship.invuln.reset(C.SAFE_SPAWN_TIME)
 
-        self.events.append("ship_explosion")
         if all(v <= 0 for v in self.lives.values()):
             self.game_over = True
 
     def _maybe_award_extra_life(self, player_id: PlayerId) -> None:
-        """Grant one extra life per EXTRA_LIFE_EVERY-point threshold crossed."""
+        """Grant one extra life per EXTRA_LIFE_EVERY-point threshold crossed.
+
+        Disabled in deathmatch: respawns are infinite there, so lives are
+        not the scoring resource.
+        """
+        if self.deathmatch:
+            return
         total = self.scores[player_id]
         already = self.extra_lives_awarded[player_id]
         target = total // C.EXTRA_LIFE_EVERY

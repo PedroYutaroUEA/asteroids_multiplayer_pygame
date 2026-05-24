@@ -58,7 +58,7 @@ class Server:
         # is cleared when the player disconnects.
         self._inputs_by_player_id: dict[int, PlayerCommand] = {}
 
-        self.world = World(spawn_default_player=False)
+        self.world = World(spawn_default_player=False, deathmatch=True)
 
     async def run(self) -> None:
         async with websockets.serve(self._handle_connection, self.host, self.port):
@@ -112,6 +112,8 @@ class Server:
             self.world.ships.pop(player_id, None)
             self.world.scores.pop(player_id, None)
             self.world.lives.pop(player_id, None)
+            self.world.deaths.pop(player_id, None)
+            self.world.respawning.pop(player_id, None)
             self.world.extra_lives_awarded.pop(player_id, None)
 
     async def _handshake(self, ws: Any) -> int | None:
