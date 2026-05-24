@@ -86,6 +86,21 @@ UFO_BIG_MISS_CHANCE = 0.35
 WHITE = (240, 240, 240)
 BLACK = (0, 0, 0)
 
+# Per-player ship colors, indexed by `(player_id - 1) % len(PLAYER_COLORS)`.
+# Seven rainbow hues for slots 1-7; slot 8 is white. Wraps for pid >= 9,
+# which only happens across rooms in multi-room servers — within a room
+# the per-room cap of MAX_PLAYERS=8 keeps colors unique.
+PLAYER_COLORS: tuple[tuple[int, int, int], ...] = (
+    (235, 64, 52),  # red
+    (235, 134, 52),  # orange
+    (235, 213, 52),  # yellow
+    (76, 200, 76),  # green
+    (80, 140, 235),  # blue
+    (110, 80, 200),  # indigo
+    (180, 90, 220),  # violet
+    (240, 240, 240),  # white (slot 8)
+)
+
 # Audio mixer settings
 AUDIO_FREQUENCY = 44100
 AUDIO_SIZE = -16

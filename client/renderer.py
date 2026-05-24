@@ -6,6 +6,22 @@ from client.camera import Camera
 from core import config as C
 from core.entities import UFO, Asteroid, Bullet, Particle, Ship
 from core.scene import SceneState
+from core.utils import Vec
+
+
+def color_for_player(
+    player_id: int,
+    palette: tuple[tuple[int, int, int], ...] = C.PLAYER_COLORS,
+) -> tuple[int, int, int]:
+    """Pick the ship color for ``player_id``.
+
+    Slot 1 takes the first palette entry (red); slot 8 takes the last
+    (white); slot 9 wraps to slot 1, etc. Non-positive ids fall back
+    to white — used by UFO bullets and other sentinels.
+    """
+    if player_id <= 0:
+        return C.WHITE
+    return palette[(player_id - 1) % len(palette)]
 
 
 class Renderer:
@@ -40,6 +56,7 @@ class Renderer:
             self._draw_ufo(ufo)
         for ship in world.ships.values():
             self._draw_ship(ship)
+            self._draw_ship_name(ship, world)
 
     def draw_hud(
         self,
@@ -127,23 +144,37 @@ class Renderer:
         pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
 
     def _draw_ship(self, ship: Ship) -> None:
+        color = color_for_player(ship.player_id, self.config.PLAYER_COLORS)
         p1, p2, p3 = ship.ship_points()
         points = [
             self.camera.world_to_screen(p1),
             self.camera.world_to_screen(p2),
             self.camera.world_to_screen(p3),
         ]
-        pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
+        pg.draw.polygon(self.screen, color, points, width=1)
 
         center = self.camera.world_to_screen(ship.pos)
         if ship.invuln.active and int(ship.invuln.remaining * 10) % 2 == 0:
-            pg.draw.circle(
-                self.screen, self.config.WHITE, center, ship.r + 6, width=1
-            )
+            pg.draw.circle(self.screen, color, center, ship.r + 6, width=1)
         if ship.shield.active:
-            pg.draw.circle(
-                self.screen, self.config.WHITE, center, ship.r + 12, width=2
-            )
+            pg.draw.circle(self.screen, color, center, ship.r + 12, width=2)
+
+    def _draw_ship_name(self, ship: Ship, world: object) -> None:
+        """Render the display name centered just below the ship.
+
+        No-op when the world has no name for this player (single-player
+        and pre-handshake frames). The name uses the same rainbow color
+        as the ship itself so the badge and the body match.
+        """
+        name = getattr(world, "names", {}).get(ship.player_id)
+        if not name:
+            return
+        color = color_for_player(ship.player_id, self.config.PLAYER_COLORS)
+        label = self.font.render(name, True, color)
+        anchor_world = Vec(ship.pos.x, ship.pos.y + ship.r + 4)
+        sx, sy = self.camera.world_to_screen(anchor_world)
+        sx -= label.get_width() // 2
+        self.screen.blit(label, (sx, sy))
 
     def _draw_ufo(self, ufo: UFO) -> None:
         cx, cy = self.camera.world_to_screen(ufo.pos)
