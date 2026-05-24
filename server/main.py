@@ -1,23 +1,31 @@
 """Asteroids multiplayer server entry point.
 
-PR 1 scope: accept WebSocket connections, run the hello/welcome/reject
-handshake, and keep the connection open until the client disconnects.
-
-The world simulation, tick loop, and snapshot push are added in the next PR;
-input handling comes after that. Until then the server is a pure handshake
-dispatcher.
+The server owns a single authoritative `World`, advances it at FPS (60 Hz),
+and broadcasts a serialized snapshot to every connected client at
+SNAPSHOT_HZ (30 Hz). Client input is not yet wired — that lands with the
+networked player client in the next PR.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 from typing import Any
 
 import websockets
 
 from core import config as C
-from server.protocol import HELLO, REJECT, WELCOME, envelope, parse
+from core.world import World
+from server.protocol import (
+    HELLO,
+    REJECT,
+    SNAPSHOT,
+    WELCOME,
+    envelope,
+    parse,
+    world_to_snapshot,
+)
 
 HANDSHAKE_TIMEOUT = 5.0
 
@@ -40,11 +48,40 @@ class Server:
         # async iteration, so Any keeps the API surface narrow.
         self.connections: dict[int, Any] = {}
         self._next_player_id = 1
+        self._seq_by_player_id: dict[int, int] = {}
+
+        self.world = World()
 
     async def run(self) -> None:
         async with websockets.serve(self._handle_connection, self.host, self.port):
             print(f"asteroids server listening on ws://{self.host}:{self.port}")
-            await asyncio.Future()
+            await asyncio.gather(self._tick_loop(), self._snapshot_loop())
+
+    async def _tick_loop(self) -> None:
+        dt = 1.0 / C.FPS
+        period = 1.0 / C.FPS
+        while True:
+            await asyncio.sleep(period)
+            self.world.update(dt, {})
+            self.tick += 1
+
+    async def _snapshot_loop(self) -> None:
+        period = 1.0 / C.SNAPSHOT_HZ
+        while True:
+            await asyncio.sleep(period)
+            await self._broadcast_snapshot()
+
+    async def _broadcast_snapshot(self) -> None:
+        if not self.connections:
+            return
+        snap = world_to_snapshot(self.world)
+        for player_id, ws in list(self.connections.items()):
+            seq = self._seq_by_player_id.get(player_id, 0)
+            self._seq_by_player_id[player_id] = seq + 1
+            # Connection handler cleans up its own slot on close; skipping
+            # this client for the current frame is the right local response.
+            with contextlib.suppress(websockets.ConnectionClosed):
+                await ws.send(envelope(SNAPSHOT, self.tick, seq, snap))
 
     async def _handle_connection(self, ws: Any) -> None:
         player_id = await self._handshake(ws)
@@ -57,6 +94,7 @@ class Server:
                 pass  # input handling lands in a later PR
         finally:
             self.connections.pop(player_id, None)
+            self._seq_by_player_id.pop(player_id, None)
 
     async def _handshake(self, ws: Any) -> int | None:
         try:
