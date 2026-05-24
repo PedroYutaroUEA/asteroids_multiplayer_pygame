@@ -20,21 +20,33 @@ Guide Asteroids development through short, safe, and testable PRs, ensuring tech
 
 ### 3.1 Branch naming
 
+Use one of these prefixes:
+
 - `feat/<short-description>` -- new feature
 - `fix/<short-description>` -- bug fix
-- `chore/<short-description>` -- maintenance, docs, refactoring
+- `chore/<short-description>` -- maintenance, configuration, tooling
+- `refactor/<short-description>` -- code restructuring without behavior change
+- `docs/<short-description>` -- documentation-only change
+- `style/<short-description>` -- formatting and code style
 
-Examples:
+Use kebab-case for the description. Examples:
+
 - `feat/multiplayer-lobby`
 - `fix/hyperspace-spawn-inside-asteroid`
 - `chore/extract-collision-manager`
+- `refactor/move-entities`
+- `docs/architecture-update`
 
 ### 3.2 Commits
 
-Message format:
+All commit messages, PR titles, and PR descriptions are written in idiomatic en-US English, using the imperative mood and a Conventional Commits prefix:
+
 - `feat: objective description`
 - `fix: specific fix`
 - `chore: structural change`
+- `refactor: structural change without behavior modification`
+- `docs: documentation update`
+- `style: code style or formatting`
 
 Commits should be small, descriptive, and aligned with the PR objective.
 
@@ -79,7 +91,7 @@ git push origin feat/feature-name
 
 ### 5.1 Title
 
-Format: `feat: objective description` / `fix: fix description` / `chore: change description`
+Format: `<prefix>: objective description`, using one of the prefixes listed in §3.2.
 
 ### 5.2 Description
 
