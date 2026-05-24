@@ -17,6 +17,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["ruff>=0.6", "pytest>=8"]
 
+[tool.setuptools]
+packages = ["core", "client"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
