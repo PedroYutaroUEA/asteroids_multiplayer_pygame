@@ -8,7 +8,7 @@ import pygame as pg
 from core import config as C
 from core.collisions import CollisionManager
 from core.commands import PlayerCommand
-from core.entities import UFO, Asteroid, Ship
+from core.entities import UFO, Asteroid, Particle, Ship
 from core.utils import Countdown, Vec, rand_edge_pos
 
 PlayerId = int
@@ -27,6 +27,7 @@ class World:
         self.bullets = pg.sprite.Group()
         self.asteroids = pg.sprite.Group()
         self.ufos = pg.sprite.Group()
+        self.particles = pg.sprite.Group()
         self.all_sprites = pg.sprite.Group()
 
         self.scores: dict[PlayerId, int] = {}
@@ -207,10 +208,28 @@ class World:
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)
 
+        for pos, kind in result.particles_to_spawn:
+            self._spawn_particles(pos, kind)
+
         for player_id in result.ship_deaths:
             ship = self.get_ship(player_id)
             if ship is not None:
+                self._spawn_particles(Vec(ship.pos), "ship")
                 self._ship_die(ship)
+
+    def _spawn_particles(self, pos: Vec, kind: str) -> None:
+        count, sp_min, sp_max, ttl = {
+            "asteroid": C.PARTICLE_ASTEROID,
+            "ufo": C.PARTICLE_UFO,
+            "ship": C.PARTICLE_SHIP,
+        }[kind]
+        for _ in range(count):
+            ang = uniform(0.0, math.tau)
+            speed = uniform(sp_min, sp_max)
+            vel = Vec(math.cos(ang), math.sin(ang)) * speed
+            p = Particle(pos, vel, ttl)
+            self.particles.add(p)
+            self.all_sprites.add(p)
 
     def _ship_die(self, ship: Ship) -> None:
         pid = ship.player_id

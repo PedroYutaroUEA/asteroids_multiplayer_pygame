@@ -18,6 +18,9 @@ class CollisionResult:
     score_deltas: dict[PlayerId, int] = field(default_factory=dict)
     ship_deaths: list[PlayerId] = field(default_factory=list)
     asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(default_factory=list)
+    # (position, kind) — kind is "asteroid", "ufo", or "ship"; World looks up
+    # the count/speed/ttl tuple in core.config and spawns the particles.
+    particles_to_spawn: list[tuple[Vec, str]] = field(default_factory=list)
 
 
 class CollisionManager:
@@ -55,13 +58,30 @@ class CollisionManager:
 
         for ast, hit_bullets in hits.items():
             if any(b.owner_id == UFO_BULLET_OWNER for b in hit_bullets):
+                pos = Vec(ast.pos)
                 ast.kill()
                 result.events.append("asteroid_explosion")
+                result.particles_to_spawn.append((pos, "asteroid"))
                 continue
 
             player_bullets = [b for b in hit_bullets if b.owner_id > 0]
             scorer = player_bullets[0].owner_id if player_bullets else None
             self._split_asteroid(ast, scorer_id=scorer, result=result)
+
+    def _destroy_ufo(
+        self,
+        ufo: object,
+        ufos: pg.sprite.Group,
+        result: CollisionResult,
+    ) -> None:
+        """Kill a UFO and emit its explosion event + particles. Helper for the
+        three sites that destroy a UFO (player bullet, asteroid contact, shield)."""
+        pos = Vec(ufo.pos)
+        ufo.kill()
+        if ufo in ufos:
+            ufos.remove(ufo)
+        result.events.append("ship_explosion")
+        result.particles_to_spawn.append((pos, "ufo"))
 
     def _ufo_vs_player_bullets(
         self,
@@ -78,9 +98,8 @@ class CollisionManager:
                     result.score_deltas[bullet.owner_id] = (
                         result.score_deltas.get(bullet.owner_id, 0) + score
                     )
-                    ufo.kill()
                     bullet.kill()
-                    result.events.append("ship_explosion")
+                    self._destroy_ufo(ufo, ufos, result)
 
     def _ufo_vs_asteroids(
         self,
@@ -88,20 +107,11 @@ class CollisionManager:
         asteroids: pg.sprite.Group,
         result: CollisionResult,
     ) -> None:
-        """UFO collided with asteroid.
-
-        - UFO is destroyed.
-        - Asteroid splits as if it were hit by a bullet, but
-          without adding score.
-        """
+        """UFO collided with asteroid. UFO dies, asteroid splits without score."""
         for ufo in list(ufos):
             for ast in list(asteroids):
                 if (ufo.pos - ast.pos).length() < (ufo.r + ast.r):
-                    ufo.kill()
-                    if ufo in ufos:
-                        ufos.remove(ufo)
-
-                    result.events.append("ship_explosion")
+                    self._destroy_ufo(ufo, ufos, result)
                     self._split_asteroid(ast, result=result)
                     break
 
@@ -135,10 +145,7 @@ class CollisionManager:
                 continue
             for ufo in list(ufos):
                 if (ufo.pos - ship.pos).length() < (ufo.r + ship.r):
-                    ufo.kill()
-                    if ufo in ufos:
-                        ufos.remove(ufo)
-                    result.events.append("ship_explosion")
+                    self._destroy_ufo(ufo, ufos, result)
 
     def _ship_vs_ufo_bullets(
         self,
@@ -179,6 +186,7 @@ class CollisionManager:
         ast.kill()
 
         result.events.append("asteroid_explosion")
+        result.particles_to_spawn.append((pos, "asteroid"))
 
         for new_size in split:
             dirv = rand_unit_vec()

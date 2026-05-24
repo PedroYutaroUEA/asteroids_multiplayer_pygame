@@ -24,6 +24,26 @@ def rotate_vec(v: Vec, deg: float) -> Vec:
     return Vec(v.x * c - v.y * s, v.x * s + v.y * c)
 
 
+class Particle(pg.sprite.Sprite):
+    """Short-lived debris particle for explosion effects. Non-interacting."""
+
+    def __init__(self, pos: Vec, vel: Vec, ttl: float) -> None:
+        super().__init__()
+        self.pos = Vec(pos)
+        self.vel = Vec(vel)
+        self.ttl = float(ttl)
+        self.rect = pg.Rect(int(pos.x), int(pos.y), 1, 1)
+
+    def update(self, dt: float) -> None:
+        self.pos += self.vel * dt
+        self.pos = wrap_pos(self.pos)
+        self.ttl -= dt
+        if self.ttl <= 0.0:
+            self.kill()
+            return
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+
+
 class Bullet(pg.sprite.Sprite):
     """Generic projectile."""
 

@@ -3,7 +3,7 @@
 import pygame as pg
 
 from core import config as C
-from core.entities import UFO, Asteroid, Bullet, Ship
+from core.entities import UFO, Asteroid, Bullet, Particle, Ship
 from core.scene import SceneState
 
 
@@ -27,6 +27,7 @@ class Renderer:
             Asteroid: self._draw_asteroid,
             Ship: self._draw_ship,
             UFO: self._draw_ufo,
+            Particle: self._draw_particle,
         }
 
     def clear(self) -> None:
@@ -99,6 +100,12 @@ class Renderer:
             center,
             bullet.r,
             width=1,
+        )
+
+    def _draw_particle(self, particle: Particle) -> None:
+        self.screen.set_at(
+            (int(particle.pos.x), int(particle.pos.y)),
+            self.config.WHITE,
         )
 
     def _draw_asteroid(self, asteroid: Asteroid) -> None:
