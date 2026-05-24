@@ -62,6 +62,7 @@ def test_deathmatch_ship_die_removes_ship_and_starts_timer():
 def test_deathmatch_respawn_after_delay_reinstates_ship():
     world = World(spawn_default_player=False, deathmatch=True)
     world.spawn_player(7)
+    world.match_state = "running"  # bypass the lobby gate for an isolated respawn check
     world.scores[7] = 250
     world._ship_die(world.ships[7])
     assert 7 not in world.ships
@@ -78,6 +79,7 @@ def test_deathmatch_respawn_position_avoids_asteroids():
     random.seed(42)
     world = World(spawn_default_player=False, deathmatch=True)
     world.spawn_player(7)
+    world.match_state = "running"
     # Sparse field — _find_safe_hyperspace_pos has room to maneuver.
     world.asteroids.append(Asteroid(Vec(100, 100), Vec(0, 0), "L"))
     world.asteroids.append(Asteroid(Vec(2000, 2000), Vec(0, 0), "L"))
@@ -112,6 +114,7 @@ def test_deathmatch_repeated_deaths_increment_deaths_counter():
     random.seed(7)
     world = World(spawn_default_player=False, deathmatch=True)
     world.spawn_player(7)
+    world.match_state = "running"
 
     world._ship_die(world.ships[7])
     assert world.deaths[7] == 1

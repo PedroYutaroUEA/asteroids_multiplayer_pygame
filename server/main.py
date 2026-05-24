@@ -119,6 +119,7 @@ class Server:
             self.world.scores.pop(player_id, None)
             self.world.lives.pop(player_id, None)
             self.world.deaths.pop(player_id, None)
+            self.world.frags.pop(player_id, None)
             self.world.respawning.pop(player_id, None)
             self.world.extra_lives_awarded.pop(player_id, None)
 

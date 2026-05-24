@@ -199,3 +199,30 @@ def test_ufo_bullet_does_not_award_frag_in_bullets_vs_ships():
     r = cm.resolve(ships={2: ship}, bullets=[ufo_bullet], asteroids=[], ufos=[])
     assert UFO_BULLET_OWNER not in r.score_deltas, "UFO bullets must not yield frags"
     assert r.score_deltas == {}
+
+
+def test_bullets_vs_ships_records_frag_delta():
+    cm = CollisionManager()
+    shooter = make_ship(player_id=1, pos=(100, 100))
+    target = make_ship(player_id=2, pos=(500, 500))
+    bullet = Bullet(1, Vec(500, 500), Vec(0, 0))
+    r = cm.resolve(ships={1: shooter, 2: target}, bullets=[bullet], asteroids=[], ufos=[])
+    assert r.frag_deltas == {1: 1}
+
+
+def test_self_bullet_does_not_record_frag_delta():
+    cm = CollisionManager()
+    ship = make_ship(player_id=1, pos=(300, 300))
+    bullet = Bullet(1, Vec(300, 300), Vec(0, 0))
+    r = cm.resolve(ships={1: ship}, bullets=[bullet], asteroids=[], ufos=[])
+    assert r.frag_deltas == {}
+
+
+def test_shielded_target_does_not_grant_frag_delta():
+    cm = CollisionManager()
+    shooter = make_ship(player_id=1, pos=(100, 100))
+    target = make_ship(player_id=2, pos=(500, 500))
+    target.shield.reset(C.SHIELD_DURATION)
+    bullet = Bullet(1, Vec(500, 500), Vec(0, 0))
+    r = cm.resolve(ships={1: shooter, 2: target}, bullets=[bullet], asteroids=[], ufos=[])
+    assert r.frag_deltas == {}

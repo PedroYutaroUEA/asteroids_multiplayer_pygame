@@ -30,6 +30,10 @@ class World:
         deathmatch: bool = False,
     ) -> None:
         self.deathmatch = deathmatch
+        # Match lifecycle: deathmatch worlds wait in "lobby" until enough
+        # players join; single-player worlds start in "running" so the
+        # update loop drives the simulation from the first tick.
+        self.match_state: str = "lobby" if deathmatch else "running"
         self.ships: dict[PlayerId, Ship] = {}
         self.bullets: list[Bullet] = []
         self.asteroids: list[Asteroid] = []
@@ -39,6 +43,7 @@ class World:
         self.scores: dict[PlayerId, int] = {}
         self.lives: dict[PlayerId, int] = {}
         self.deaths: dict[PlayerId, int] = {}
+        self.frags: dict[PlayerId, int] = {}
         self.respawning: dict[PlayerId, Countdown] = {}
         self.extra_lives_awarded: dict[PlayerId, int] = {}
         # Display names of connected players, keyed by player_id. Populated
@@ -82,6 +87,7 @@ class World:
         self.scores[player_id] = 0
         self.lives[player_id] = C.START_LIVES
         self.deaths[player_id] = 0
+        self.frags[player_id] = 0
         self.extra_lives_awarded[player_id] = 0
 
     def get_ship(self, player_id: PlayerId) -> Ship | None:
@@ -120,6 +126,10 @@ class World:
         self.begin_frame()
 
         if self.game_over:
+            return
+
+        if self.match_state == "lobby":
+            self._maybe_start_match()
             return
 
         self._apply_commands(dt, commands_by_player_id)
@@ -187,6 +197,11 @@ class World:
                 nearest = ship
         return nearest.pos if nearest else None
 
+    def _maybe_start_match(self) -> None:
+        """Move from lobby to running once enough players have connected."""
+        if len(self.ships) >= C.MIN_PLAYERS_TO_START:
+            self.match_state = "running"
+
     def _update_respawns(self, dt: float) -> None:
         for pid, timer in list(self.respawning.items()):
             if timer.tick(dt):
@@ -245,6 +260,10 @@ class World:
             if player_id in self.scores:
                 self.scores[player_id] += delta
                 self._maybe_award_extra_life(player_id)
+
+        for player_id, delta in result.frag_deltas.items():
+            if player_id in self.frags:
+                self.frags[player_id] += delta
 
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)

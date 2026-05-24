@@ -16,6 +16,9 @@ class CollisionResult:
 
     events: list[str] = field(default_factory=list)
     score_deltas: dict[PlayerId, int] = field(default_factory=dict)
+    # PvP frag counter, applied separately from score. A frag is one shooter
+    # killing another player's ship; UFO/asteroid kills do not count here.
+    frag_deltas: dict[PlayerId, int] = field(default_factory=dict)
     ship_deaths: list[PlayerId] = field(default_factory=list)
     asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(default_factory=list)
     # (position, kind) — kind is "asteroid", "ufo", or "ship"; World looks up
@@ -203,6 +206,9 @@ class CollisionManager:
                         continue
                     result.score_deltas[bullet.owner_id] = (
                         result.score_deltas.get(bullet.owner_id, 0) + C.FRAG_SCORE
+                    )
+                    result.frag_deltas[bullet.owner_id] = (
+                        result.frag_deltas.get(bullet.owner_id, 0) + 1
                     )
                     result.ship_deaths.append(ship.player_id)
                     break
