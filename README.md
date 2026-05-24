@@ -13,17 +13,18 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### Run multiplayer (one player)
+### Run multiplayer deathmatch
 
 ```
 # Terminal 1
 python -m server --port 8765
 
-# Terminal 2
-python -m multiplayer.player --host localhost --port 8765 --name P1
+# Terminals 2 and 3 (one client per player)
+python -m multiplayer.player --host localhost --port 8765 --name Alice
+python -m multiplayer.player --host localhost --port 8765 --name Bob
 ```
 
-The server is authoritative and runs the `World` headlessly at 60 Hz; the player client connects, receives snapshots at 30 Hz, sends input every frame, and renders through the same client renderer used by single-player.
+The server is authoritative and runs the `World` headlessly at 60 Hz; each client connects, receives snapshots at 30 Hz, sends input every frame, and renders through the same client renderer used by single-player. The networked client adds a local HUD with score and deaths plus a scoreboard listing every connected player, ordered by score, with a `RESPAWN X.Xs` countdown shown next to anyone waiting to respawn.
 
 ## Controls
 
@@ -51,10 +52,11 @@ See [`docs/teaching/`](docs/teaching/) for the lecture material that walks throu
 
 Key files:
 
-- [`core/world.py`](core/world.py): simulation tick, wave spawning, score and lives.
+- [`core/world.py`](core/world.py): simulation tick, wave spawning, score, lives, deathmatch flag, respawn loop.
 - [`core/entities.py`](core/entities.py): `Ship`, `Asteroid`, `Bullet`, `UFO`, `Particle`.
 - [`core/collisions.py`](core/collisions.py): `CollisionManager` resolves every collision in a single pass and returns a `CollisionResult`.
 - [`client/game.py`](client/game.py): game loop and scene transitions (menu, play, game over).
+- [`multiplayer/hud.py`](multiplayer/hud.py): networked-client HUD and 1-room scoreboard.
 
 ## Roadmap
 
@@ -62,7 +64,7 @@ Key files:
 |---|---|---|
 | F1 — Foundation | Decouple `core/` from pygame, viewport vs world split, camera, testing infra | done |
 | F2 — Server lonely | WebSocket asyncio server, single player connects and sees own state | done |
-| F3 — Multi-player 1 room | N players in deathmatch, respawn, frag/score | planned |
+| F3 — Multi-player 1 room | N players in deathmatch, respawn, frag/score, scoreboard HUD | done |
 | F4 — Match lifecycle | Timer / frag limit / match end, spectator client | planned |
 | F5 — Multi-room | Token-based rooms, parallel matches, per-room logs | planned |
 
