@@ -109,10 +109,8 @@ class Renderer:
         )
 
     def _draw_particle(self, particle: Particle) -> None:
-        self.screen.set_at(
-            (int(particle.pos.x), int(particle.pos.y)),
-            self.config.WHITE,
-        )
+        rect = pg.Rect(int(particle.pos.x), int(particle.pos.y), 2, 2)
+        self.screen.fill(self.config.WHITE, rect)
 
     def _draw_asteroid(self, asteroid: Asteroid) -> None:
         points = []
