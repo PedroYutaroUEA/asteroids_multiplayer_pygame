@@ -30,6 +30,8 @@ dist/
 .vscode/
 .claude/
 CLAUDE.md
+demo-sala-de-aula.txt
+docs/teaching/
 
 # Optional: ignore large audio files
 # assets/sounds/*.wav
