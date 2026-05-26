@@ -73,8 +73,6 @@ Four top-level packages, each with a single concern:
 
 The single-player path (`python main.py`) uses `core/` + `client/` directly and is preserved across every phase. The multiplayer path (server + multiplayer client) layers `server/` + `multiplayer/` on top without touching the others.
 
-See [`docs/teaching/`](docs/teaching/) for the lecture material that walks through each phase.
-
 Key files:
 
 - [`core/world.py`](core/world.py): simulation tick, wave spawning, score, lives, deathmatch flag, respawn loop, match lifecycle.
@@ -110,8 +108,7 @@ asteroids_multiplayer/
 ├── tests/                    # pytest suite (snapshot, protocol, vec, ...)
 └── docs/
     ├── ARCHITECTURE.md
-    ├── DEVELOPMENT_WORKFLOW.md
-    └── teaching/             # PT-BR lecture material per phase
+    └── DEVELOPMENT_WORKFLOW.md
 ```
 
 ## Contributing
