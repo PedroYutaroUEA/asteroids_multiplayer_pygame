@@ -17,6 +17,10 @@ PREDICTION_SMOOTH = 15.0  # exponential correction rate (1/s)
 # The server consumes one queued input per player per tick; the queue is
 # a small jitter buffer. The cap bounds added input latency under bursts.
 INPUT_QUEUE_CAP = 8
+# Remote ships are rendered this many seconds in the past, interpolated
+# between the two buffered snapshots that straddle that time — smoother
+# than extrapolation, at the cost of a little latency on other players.
+INTERP_DELAY = 0.05
 
 # Per-room cap from F5 onward; before F5 this was the global server
 # cap. Single-room servers (default `--rooms 1`) keep the same effect.

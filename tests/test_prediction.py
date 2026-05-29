@@ -9,6 +9,7 @@ from multiplayer.prediction import (
     PredictedInput,
     ShipPredictor,
     ease_toward,
+    interpolate_ships,
     simulate_from_authority,
     toroidal_delta,
     toroidal_distance,
@@ -252,3 +253,64 @@ def test_predictor_rebase_ack_snaps_on_large_error():
     p.has_render_state = True
     p.rebase(w, 1, ack=-1)  # target stays at authority -> snap
     assert (p.render_pos.x, p.render_pos.y) == (500, 500)
+
+
+# --- interpolate_ships (remote smoothing) --------------------------------
+
+
+def _ship_snap(pid, x, y, angle=0.0):
+    return {"player_id": pid, "x": x, "y": y, "angle": angle, "vx": 0, "vy": 0}
+
+
+def _snap(ships):
+    return {"ships": ships}
+
+
+def test_interpolate_midpoint():
+    buf = [
+        (0.0, _snap([_ship_snap(2, 100, 100)])),
+        (1.0, _snap([_ship_snap(2, 200, 100)])),
+    ]
+    pos, _ = interpolate_ships(buf, 0.5)[2]
+    assert pos.x == 150
+    assert pos.y == 100
+
+
+def test_interpolate_returns_empty_when_outside_range():
+    buf = [
+        (0.0, _snap([_ship_snap(2, 0, 0)])),
+        (1.0, _snap([_ship_snap(2, 100, 0)])),
+    ]
+    assert interpolate_ships(buf, 2.0) == {}  # ahead of newest
+    assert interpolate_ships(buf, -1.0) == {}  # before oldest
+    assert interpolate_ships([], 0.5) == {}  # empty buffer
+
+
+def test_interpolate_skips_ship_missing_in_one_snapshot():
+    buf = [
+        (0.0, _snap([_ship_snap(2, 0, 0)])),
+        (1.0, _snap([_ship_snap(2, 100, 0), _ship_snap(3, 50, 0)])),
+    ]
+    out = interpolate_ships(buf, 0.5)
+    assert 2 in out
+    assert 3 not in out  # only in the newer snapshot -> cannot interpolate
+
+
+def test_interpolate_position_toroidal_seam():
+    buf = [
+        (0.0, _snap([_ship_snap(2, C.WORLD_WIDTH - 10, 0)])),
+        (1.0, _snap([_ship_snap(2, 10, 0)])),
+    ]
+    # Short way is +20 across the seam; midpoint at x == WORLD_WIDTH -> 0.
+    pos, _ = interpolate_ships(buf, 0.5)[2]
+    assert pos.x == 0
+
+
+def test_interpolate_angle_shortest_arc():
+    buf = [
+        (0.0, _snap([_ship_snap(2, 0, 0, angle=350.0)])),
+        (1.0, _snap([_ship_snap(2, 0, 0, angle=10.0)])),
+    ]
+    # 350 -> 10 the short way is +20 (through 360); midpoint is 360.
+    _, angle = interpolate_ships(buf, 0.5)[2]
+    assert abs(angle - 360.0) < 1e-9

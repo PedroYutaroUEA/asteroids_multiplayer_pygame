@@ -19,6 +19,7 @@ import argparse
 import asyncio
 import contextlib
 import sys
+from collections import deque
 from typing import Any
 
 import pygame as pg
@@ -40,7 +41,11 @@ from multiplayer.hud import (
     draw_scoreboard,
     draw_waiting_screen,
 )
-from multiplayer.prediction import PredictedInput, ShipPredictor
+from multiplayer.prediction import (
+    PredictedInput,
+    ShipPredictor,
+    interpolate_ships,
+)
 from multiplayer.snapshot import snapshot_to_world
 from server.protocol import (
     HELLO,
@@ -77,6 +82,10 @@ class Player:
 
         self.world = World(spawn_default_player=False)
         self.predictor = ShipPredictor()
+        # Recent snapshots (arrival_time, data) for remote interpolation,
+        # and the per-frame interpolated pose of each remote ship.
+        self.snapshot_buffer: deque[tuple[float, dict]] = deque(maxlen=8)
+        self.remote_render: dict[int, tuple[Vec, float]] = {}
 
         pg.mixer.pre_init(
             C.AUDIO_FREQUENCY,
@@ -158,6 +167,8 @@ class Player:
                 if msg["type"] == SNAPSHOT:
                     snapshot_to_world(msg["data"], self.world)
                     self.server_tick = msg["tick"]
+                    now = asyncio.get_running_loop().time()
+                    self.snapshot_buffer.append((now, msg["data"]))
                     self.predictor.rebase(
                         self.world,
                         self.player_id,
@@ -217,6 +228,15 @@ class Player:
 
             self.world.update_local_visual(dt, local_player_id=self.player_id)
             self.predictor.step(self.world, self.player_id, dt)
+
+            interp = interpolate_ships(
+                self.snapshot_buffer, loop.time() - C.INTERP_DELAY
+            )
+            self.remote_render = {
+                pid: pose
+                for pid, pose in interp.items()
+                if pid != self.player_id
+            }
             self.audio.update_thrust(cmd.thrust)
             self.audio.update_ufo_siren(list(self.world.ufos))
             self.audio.play_events(self.world.events)
@@ -226,6 +246,24 @@ class Player:
 
             elapsed = loop.time() - frame_start
             await asyncio.sleep(max(0.0, period - elapsed))
+
+    def _apply_pose_overrides(
+        self, poses: dict[int, tuple[Vec, float]]
+    ) -> dict[int, tuple[Vec, float]]:
+        """Set ship poses for rendering; return the previous poses.
+
+        Calling it again with the returned dict restores the originals,
+        so the authoritative snapshot state is never clobbered.
+        """
+        previous: dict[int, tuple[Vec, float]] = {}
+        for pid, (pos, angle) in poses.items():
+            s = self.world.get_ship(pid)
+            if s is None:
+                continue
+            previous[pid] = (Vec(s.pos), s.angle)
+            s.pos.xy = pos.xy
+            s.angle = angle
+        return previous
 
     def _draw(self) -> None:
         state = self.world.match_state
@@ -237,12 +275,17 @@ class Player:
                 if self.player_id is not None
                 else None
             )
-            predicting = ship is not None and self.predictor.has_render_state
-            if predicting:
-                saved_pos = Vec(ship.pos)
-                saved_angle = ship.angle
-                ship.pos.xy = self.predictor.render_pos.xy
-                ship.angle = self.predictor.render_angle
+            # Override each ship's pose for rendering only: the local ship
+            # at its predicted pose, the remote ships at their interpolated
+            # pose. Restore afterwards so the authoritative state stays
+            # intact for the next snapshot and rebase.
+            overrides = dict(self.remote_render)
+            if ship is not None and self.predictor.has_render_state:
+                overrides[ship.player_id] = (
+                    self.predictor.render_pos,
+                    self.predictor.render_angle,
+                )
+            saved = self._apply_pose_overrides(overrides)
 
             if ship is not None:
                 self.camera.update(ship.pos)
@@ -250,9 +293,7 @@ class Player:
                 self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
             self.renderer.draw_world(self.world)
 
-            if predicting:
-                ship.pos.xy = saved_pos.xy
-                ship.angle = saved_angle
+            self._apply_pose_overrides(saved)
             draw_local_hud(
                 self.screen,
                 self.font,

@@ -101,6 +101,55 @@ def ease_toward(cur: Vec, goal: Vec, rate: float, dt: float) -> Vec:
     return wrap_pos(cur + toroidal_delta(cur, goal) * t)
 
 
+def _shortest_angle(a: float, b: float) -> float:
+    """Signed shortest angular difference b - a, in degrees [-180, 180)."""
+    return (b - a + 180.0) % 360.0 - 180.0
+
+
+def interpolate_ships(
+    buffer: Sequence[tuple[float, dict]], render_time: float
+) -> dict[int, tuple[Vec, float]]:
+    """Interpolate remote ship pose at `render_time` from the buffer.
+
+    Finds the two buffered snapshots straddling `render_time` and lerps
+    each ship that appears in both — position along the toroidal delta,
+    angle along the shortest arc. Ships present in only one snapshot
+    (just joined/left) are omitted; the caller falls back to
+    extrapolation for those. Returns {} when `render_time` is outside the
+    buffered range (e.g. at startup), so the caller can fall back too.
+
+    The buffer holds (arrival_time, snapshot) pairs in ascending time.
+    """
+    older: tuple[float, dict] | None = None
+    newer: tuple[float, dict] | None = None
+    for entry in buffer:
+        if entry[0] <= render_time:
+            older = entry
+        elif newer is None:
+            newer = entry
+    if older is None or newer is None:
+        return {}
+
+    t0, snap0 = older
+    t1, snap1 = newer
+    span = t1 - t0
+    f = 0.0 if span <= 0 else (render_time - t0) / span
+
+    by_pid0 = {s["player_id"]: s for s in snap0["ships"]}
+    out: dict[int, tuple[Vec, float]] = {}
+    for s1 in snap1["ships"]:
+        pid = s1["player_id"]
+        s0 = by_pid0.get(pid)
+        if s0 is None:
+            continue
+        p0 = Vec(s0["x"], s0["y"])
+        p1 = Vec(s1["x"], s1["y"])
+        pos = wrap_pos(p0 + toroidal_delta(p0, p1) * f)
+        angle = s0["angle"] + _shortest_angle(s0["angle"], s1["angle"]) * f
+        out[pid] = (pos, angle)
+    return out
+
+
 class ShipPredictor:
     """Tracks the predicted render position/angle of the local ship."""
 
