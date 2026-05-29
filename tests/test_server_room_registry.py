@@ -143,6 +143,22 @@ def test_broadcast_injects_per_player_ack():
     assert msg["data"]["ack"] == 42
 
 
+def test_broadcast_ack_defaults_to_negative_one():
+    server = Server("127.0.0.1", 0, allowed_tokens={VALID_TOKEN}, rooms=1)
+    ws = FakeWebSocket([])
+    pid = 1
+    server.connections[pid] = ws
+    server.room_by_player_id[pid] = 0
+    server._names_by_player_id[pid] = "alice"
+    server.worlds[0].spawn_player(pid)
+    # No input processed yet: the ack sentinel must be -1, never 0, so
+    # the client does not prune its real seq-0 input.
+    asyncio.run(server._broadcast_snapshot())
+
+    msg = json.loads(ws.sent[-1])
+    assert msg["data"]["ack"] == -1
+
+
 def test_pids_in_room_returns_only_matching_players():
     server = Server("127.0.0.1", 0, allowed_tokens={VALID_TOKEN}, rooms=2)
     server.room_by_player_id = {1: 0, 2: 1, 3: 0, 4: 1}

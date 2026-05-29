@@ -140,21 +140,31 @@ class ShipPredictor:
             self.render_pos, target.pos, C.PREDICTION_SMOOTH, dt
         )
 
-    def rebase(self, world: World, pid: int | None) -> None:
+    def rebase(
+        self, world: World, pid: int | None, ack: int | None = None
+    ) -> None:
         """Adopt a fresh authoritative snapshot.
 
-        With no server acknowledgement of processed inputs (Tier A), the
-        safe choice is to trust the snapshot fully and drop the input
-        history; the next frames re-accumulate it. Snap on a large error
-        (hyperspace, respawn elsewhere) instead of smearing across it.
+        `ack` is the last input seq the server has processed (-1 if none
+        yet). Discard the inputs it already reflects and keep the
+        unconfirmed tail, so `step` replays exactly those onto the new
+        authoritative state — classic prediction + reconciliation.
+        Without an ack, drop the whole history (the snapshot is trusted
+        as-is). Either way, snap on a large error between what we render
+        and the reconciled target (hyperspace, respawn elsewhere)
+        instead of smearing across it.
         """
         ship = world.get_ship(pid) if pid is not None else None
         if ship is None:
             self.reset()
             return
-        self.history.clear()
+        if ack is None:
+            self.history.clear()
+        else:
+            self.history = [e for e in self.history if e.seq > ack]
         if not self.has_render_state:
             return
-        err = toroidal_distance(self.render_pos, ship.pos)
+        target = simulate_from_authority(ship, self.history)
+        err = toroidal_distance(self.render_pos, target.pos)
         if err > C.PREDICTION_SNAP_DIST:
-            self.render_pos = Vec(ship.pos)
+            self.render_pos = Vec(target.pos)

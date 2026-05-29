@@ -158,7 +158,11 @@ class Player:
                 if msg["type"] == SNAPSHOT:
                     snapshot_to_world(msg["data"], self.world)
                     self.server_tick = msg["tick"]
-                    self.predictor.rebase(self.world, self.player_id)
+                    self.predictor.rebase(
+                        self.world,
+                        self.player_id,
+                        ack=msg["data"].get("ack"),
+                    )
         except websockets.ConnectionClosed:
             pass
         finally:

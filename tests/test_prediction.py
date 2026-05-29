@@ -202,3 +202,53 @@ def test_predictor_rebase_without_ship_resets():
     p.rebase(w, 1)
     assert not p.has_render_state
     assert p.history == []
+
+
+# --- reconciliation (ack-based pruning + replay) -------------------------
+
+
+def test_predictor_rebase_prunes_acked_keeps_unacked():
+    w = _running_world(_ship(1, pos=(500, 500)))
+    p = ShipPredictor()
+    for s in range(5):  # seqs 0..4
+        p.record_input(PredictedInput(s, PlayerCommand(), DT))
+    p.render_pos = Vec(500, 500)
+    p.has_render_state = True
+    p.rebase(w, 1, ack=2)
+    # Inputs the server confirmed (seq <= 2) are dropped; 3, 4 replay.
+    assert [e.seq for e in p.history] == [3, 4]
+
+
+def test_predictor_rebase_ack_negative_keeps_all():
+    w = _running_world(_ship(1, pos=(500, 500)))
+    p = ShipPredictor()
+    p.record_input(PredictedInput(0, PlayerCommand(), DT))
+    p.record_input(PredictedInput(1, PlayerCommand(), DT))
+    p.render_pos = Vec(500, 500)
+    p.has_render_state = True
+    p.rebase(w, 1, ack=-1)  # nothing acked yet
+    assert [e.seq for e in p.history] == [0, 1]
+
+
+def test_reconciliation_replays_unacked_thrust():
+    # The reconciled prediction is authority replayed with the unacked
+    # inputs, so kept thrust inputs move the target ahead of authority.
+    w = _running_world(_ship(1, pos=(500, 500), angle=0.0))
+    p = ShipPredictor()
+    p.record_input(PredictedInput(0, PlayerCommand(thrust=True), DT))
+    p.record_input(PredictedInput(1, PlayerCommand(thrust=True), DT))
+    p.render_pos = Vec(500, 500)
+    p.has_render_state = True
+    p.rebase(w, 1, ack=-1)  # keep both
+    target = simulate_from_authority(w.get_ship(1), p.history)
+    assert (target.pos.x, target.pos.y) != (500, 500)
+
+
+def test_predictor_rebase_ack_snaps_on_large_error():
+    w = _running_world(_ship(1, pos=(500, 500)))
+    p = ShipPredictor()
+    p.record_input(PredictedInput(0, PlayerCommand(), DT))  # no movement
+    p.render_pos = Vec(2000, 2000)
+    p.has_render_state = True
+    p.rebase(w, 1, ack=-1)  # target stays at authority -> snap
+    assert (p.render_pos.x, p.render_pos.y) == (500, 500)

@@ -228,11 +228,11 @@ class Server:
                     continue
                 seq = self._seq_by_player_id.get(player_id, 0)
                 self._seq_by_player_id[player_id] = seq + 1
-                # Per-player ack of the last input the tick loop consumed.
-                # Shallow copy so each client gets its own ack without
-                # rebuilding the (shared) room snapshot.
+                # Per-player ack of the last input the tick loop consumed
+                # (-1 until the first one). Shallow copy so each client
+                # gets its own ack without rebuilding the room snapshot.
                 data = dict(snap)
-                data["ack"] = self._last_processed_seq.get(player_id, 0)
+                data["ack"] = self._last_processed_seq.get(player_id, -1)
                 payload = envelope(SNAPSHOT, self.tick, seq, data)
                 # Connection handler cleans up its own slot on close;
                 # skipping this client for the current frame is the
