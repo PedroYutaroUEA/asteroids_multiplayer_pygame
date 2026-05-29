@@ -20,6 +20,8 @@ Escolha uma das formas:
 - **Clonar pelo VS Code:** `Ctrl+Shift+P` → digite **Git: Clone** → cole `https://github.com/jucimarjr/asteroids_multiplayer` → escolha uma pasta → **Open**.
 - **Ou baixar o ZIP:** no GitHub, botão verde **Code → Download ZIP**, extraia, e no VS Code use **File → Open Folder** na pasta extraída.
 
+**Já baixou em uma aula anterior?** Atualize antes de jogar para pegar as últimas melhorias: o controle da nave ficou bem mais responsivo, e as outras naves se movem mais suaves, mesmo com o servidor distante. No VS Code: **Source Control** (`Ctrl+Shift+G`) → menu **⋯** → **Pull**. No terminal: `git pull`. Quem usou o ZIP precisa baixar o ZIP de novo.
+
 ## 2. Criar o ambiente e instalar as dependências
 
 Deixe o VS Code cuidar disso:
