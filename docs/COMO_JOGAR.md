@@ -74,6 +74,19 @@ Abre a janela do jogo. **A partida começa quando 2 jogadores entram na mesma sa
 | Enter | Reiniciar (na tela de fim de partida) |
 | Esc ou Q | Sair |
 
+## O servidor está no ar?
+
+Antes de achar que o problema é com você, dá para checar o servidor em um comando. No terminal integrado (com o `.venv` ativo):
+
+```
+python scripts/server_health.py
+```
+
+- **No ar:** `SERVIDOR NO AR -- ws://2.25.147.96:8765 respondeu em 730 ms.`
+- **Fora do ar:** `SERVIDOR FORA DO AR -- ...` (porta fechada ou servidor desligado fora do horário da aula).
+
+Não precisa de token: é seguro rodar a qualquer momento. Se der **no ar** mas você ainda não entra, o problema é o seu token, sua sala ou seu nome — veja a tabela abaixo.
+
 ## Deu problema?
 
 | Mensagem / sintoma | O que fazer |
@@ -81,6 +94,6 @@ Abre a janela do jogo. **A partida começa quando 2 jogadores entram na mesma sa
 | `unauthorized` | Token errado — confira com o professor |
 | `room_full` | Sua sala já tem 8 jogadores — confirme seu número de sala |
 | `invalid_room` | Sala fora do intervalo 0–7 |
-| `connection refused` / trava ao conectar | Confira o IP e a porta; o servidor pode estar desligado fora do horário da aula |
+| `connection refused` / trava ao conectar | Rode `python scripts/server_health.py` (acima) para saber se o servidor está no ar; confira também o IP e a porta |
 | `pygame` não instala | Confirme `python --version` entre 3.10 e 3.13 (evite 3.14+) |
 | A janela não abre | Rode numa máquina com tela (não por acesso remoto/SSH) |
