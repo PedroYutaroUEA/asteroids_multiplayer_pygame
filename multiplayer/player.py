@@ -31,6 +31,7 @@ from client.camera import Camera
 from client.controls import InputMapper
 from client.renderer import Renderer
 from core import config as C
+from core.frame_stats import FrameProfiler
 from core.utils import Vec
 from core.world import World
 from multiplayer.command_codec import command_to_dict
@@ -69,6 +70,7 @@ class Player:
         name: str,
         room: int,
         token: str,
+        profile_frames: bool = False,
     ) -> None:
         self.host = host
         self.port = port
@@ -79,6 +81,10 @@ class Player:
         self.server_tick = 0
         self.seq = 0
         self.running = True
+        self.profiler = (
+            FrameProfiler("[frames net]") if profile_frames else None
+        )
+        self._last_snapshot_at: float | None = None
 
         self.world = World(spawn_default_player=False)
         self.predictor = ShipPredictor()
@@ -168,6 +174,13 @@ class Player:
                     snapshot_to_world(msg["data"], self.world)
                     self.server_tick = msg["tick"]
                     now = asyncio.get_running_loop().time()
+                    if self.profiler:
+                        if self._last_snapshot_at is not None:
+                            self.profiler.add(
+                                "snap_dt",
+                                (now - self._last_snapshot_at) * 1000.0,
+                            )
+                        self._last_snapshot_at = now
                     self.snapshot_buffer.append((now, msg["data"]))
                     self.predictor.rebase(
                         self.world,
@@ -226,6 +239,8 @@ class Player:
             self.predictor.record_input(PredictedInput(self.seq, cmd, dt))
             self.seq += 1
 
+            if self.profiler:
+                upd_t0 = loop.time()
             self.world.update_local_visual(dt, local_player_id=self.player_id)
             self.predictor.step(self.world, self.player_id, dt)
 
@@ -242,9 +257,17 @@ class Player:
             self.audio.play_events(self.world.events)
             self.world.events.clear()
 
+            if self.profiler:
+                draw_t0 = loop.time()
+                self.profiler.add("update", (draw_t0 - upd_t0) * 1000.0)
             self._draw()
+            if self.profiler:
+                self.profiler.add("draw", (loop.time() - draw_t0) * 1000.0)
 
             elapsed = loop.time() - frame_start
+            if self.profiler:
+                self.profiler.add("frame", elapsed * 1000.0)
+                self.profiler.frame_done(loop.time())
             await asyncio.sleep(max(0.0, period - elapsed))
 
     def _apply_pose_overrides(
@@ -352,9 +375,21 @@ def main() -> None:
         required=True,
         help="allowlist token issued by the server operator",
     )
+    parser.add_argument(
+        "--profile-frames",
+        action="store_true",
+        help="log frame-time and snapshot jitter to stderr",
+    )
     args = parser.parse_args()
 
-    player = Player(args.host, args.port, args.name, args.room, args.token)
+    player = Player(
+        args.host,
+        args.port,
+        args.name,
+        args.room,
+        args.token,
+        profile_frames=args.profile_frames,
+    )
     try:
         asyncio.run(player.run())
     except KeyboardInterrupt:

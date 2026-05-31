@@ -6,6 +6,7 @@
 """
 
 import sys
+import time
 
 import pygame as pg
 
@@ -15,6 +16,7 @@ from client.camera import Camera
 from client.controls import InputMapper
 from client.renderer import Renderer
 from core import config as C
+from core.frame_stats import FrameProfiler
 from core.scene import SceneState
 from core.world import World
 
@@ -22,7 +24,7 @@ from core.world import World
 class Game:
     """Orchestrates input -> update -> draw."""
 
-    def __init__(self) -> None:
+    def __init__(self, profile_frames: bool = False) -> None:
         pg.mixer.pre_init(
             C.AUDIO_FREQUENCY, C.AUDIO_SIZE, C.AUDIO_CHANNELS, C.AUDIO_BUFFER
         )
@@ -34,6 +36,7 @@ class Game:
 
         self.clock = pg.time.Clock()
         self.running = True
+        self.profiler = FrameProfiler() if profile_frames else None
 
         self.font = pg.font.SysFont(C.FONT_NAME, C.FONT_SIZE_SMALL)
         self.big = pg.font.SysFont(C.FONT_NAME, C.FONT_SIZE_LARGE)
@@ -55,9 +58,25 @@ class Game:
     def run(self) -> None:
         while self.running:
             dt = self.clock.tick(C.FPS) / 1000.0
+            if self.profiler:
+                frame_t0 = time.perf_counter()
+
             self._handle_events()
+
+            if self.profiler:
+                upd_t0 = time.perf_counter()
             self._update(dt)
+            if self.profiler:
+                self.profiler.add(
+                    "update", (time.perf_counter() - upd_t0) * 1000.0
+                )
+
             self._draw()
+
+            if self.profiler:
+                now = time.perf_counter()
+                self.profiler.add("frame", (now - frame_t0) * 1000.0)
+                self.profiler.frame_done(now)
 
         pg.quit()
 
@@ -118,7 +137,14 @@ class Game:
         ship = self.world.get_ship(C.LOCAL_PLAYER_ID)
         if ship is not None:
             self.camera.update(ship.pos)
+
+        p = self.profiler
+        if p:
+            t0 = time.perf_counter()
         self.renderer.draw_world(self.world)
+        if p:
+            t1 = time.perf_counter()
+            p.add("draw_world", (t1 - t0) * 1000.0)
         self.renderer.draw_hud(
             self.world.scores.get(C.LOCAL_PLAYER_ID, 0),
             self.world.lives.get(C.LOCAL_PLAYER_ID, 0),
@@ -126,7 +152,12 @@ class Game:
             self.scene,
             self.world.extra_life_notice.remaining,
         )
+        if p:
+            t2 = time.perf_counter()
+            p.add("draw_hud", (t2 - t1) * 1000.0)
         pg.display.flip()
+        if p:
+            p.add("flip", (time.perf_counter() - t2) * 1000.0)
 
     def _quit(self) -> None:
         self.running = False
