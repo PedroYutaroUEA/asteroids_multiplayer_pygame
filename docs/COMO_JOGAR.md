@@ -97,3 +97,4 @@ Não precisa de token: é seguro rodar a qualquer momento. Se der **no ar** mas 
 | `connection refused` / trava ao conectar | Rode `python scripts/server_health.py` (acima) para saber se o servidor está no ar; confira também o IP e a porta |
 | `pygame` não instala | Confirme `python --version` entre 3.10 e 3.13 (evite 3.14+) |
 | A janela não abre | Rode numa máquina com tela (não por acesso remoto/SSH) |
+| Jogo travando ou lento | Acrescente `--profile-frames` ao fim do comando. A cada 2 s o terminal mostra uma linha com o `fps=`: bem abaixo de 60 é a sua máquina (feche outros programas); perto de 60 mas com as **outras** naves "tremidas" é a rede |
