@@ -368,8 +368,19 @@ class World:
         self.extra_life_notice.tick(dt)
 
     def _spawn_laser_powerup(self) -> None:
-        """Spawn a laser powerup at a random world position."""
-        pos = Vec(uniform(0, C.WORLD_WIDTH), uniform(0, C.WORLD_HEIGHT))
+        """Spawn a laser powerup near an active ship."""
+        alive_ships = list(self.ships.values())
+
+        if alive_ships:
+            ship = alive_ships[int(uniform(0, len(alive_ships)))]
+            offset = Vec(
+                uniform(-C.WINDOW_WIDTH / 3, C.WINDOW_WIDTH / 3),
+                uniform(-C.WINDOW_HEIGHT / 3, C.WINDOW_HEIGHT / 3),
+            )
+            pos = wrap_pos(ship.pos + offset)
+        else:
+            pos = Vec(uniform(0, C.WORLD_WIDTH), uniform(0, C.WORLD_HEIGHT))
+
         self.powerups.append(LaserPowerup(pos, Vec(0, 0)))
 
     def _maybe_start_next_wave(self, dt: float) -> None:
