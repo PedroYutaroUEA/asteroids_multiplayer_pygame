@@ -86,6 +86,38 @@ Key files:
 - [`multiplayer/spectator.py`](multiplayer/spectator.py): read-only spectator client.
 - [`server/auth.py`](server/auth.py): token allowlist loader.
 
+## Architecture Overview
+
+The project follows a client-server architecture where the server is authoritative over the game state and clients are responsible for input collection and rendering. The architecture is organized into independent modules with clear responsibilities, allowing the single-player and multiplayer modes to share the same simulation core.
+
+### C4 — System Context
+
+This diagram shows the system's external actors and its relationship with players and spectators.
+
+![Asteroids Multiplayer Context Diagram](docs/asteroidsContextDiagram-dark.png)
+
+### C4 — Container Diagram
+
+This diagram presents the main containers that compose the application and how they communicate with each other.  
+
+- **Server** hosts the authoritative game world.
+- **Multiplayer Client** sends player inputs and receives snapshots.
+- **Spectator Client** receives snapshots in read-only mode.
+- **Core** contains the game simulation shared by all execution modes.
+
+![Asteroids Multiplayer Container Diagram](docs/asteroidsContainerDiagram-dark.png)
+
+### C4 — Component Diagram
+
+This diagram details the internal organization of the main modules and their responsibilities.
+
+- `core/` manages entities, collisions, rules, and world updates.
+- `server/` handles room management, networking, and snapshot generation.
+- `multiplayer/` applies snapshots, prediction, reconciliation, and HUD rendering.
+- `client/` provides rendering, input handling, camera management, and audio.
+
+![Asteroids Multiplayer Component Diagram](docs/ComponentDiagram-dark.png)
+
 ## Roadmap
 
 | Phase | Content | Status |
